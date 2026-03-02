@@ -4,6 +4,12 @@
 # =============================================================================
 # This script installs the required software for the OPM MEG module of NEU502B.
 # Run with: bash setup_opm.sh
+#
+# WINDOWS USERS: This script requires WSL (Windows Subsystem for Linux).
+# If you don't have WSL installed, open PowerShell as Administrator and run:
+#     wsl --install
+# Then restart your computer, open the Ubuntu terminal, and run:
+#     bash setup_opm.sh
 # =============================================================================
 
 set -e  # Exit on any error
@@ -99,7 +105,7 @@ else
 fi
 echo ""
 
-# --- mne-opm (dev branch) by Harrison Ritz ---
+# --- mne-opm (dev branch) ---
 echo "--- Step 2: Install mne-opm (dev branch) ---"
 echo ""
 
@@ -151,7 +157,7 @@ echo ""
 # --- Step 3: Run uv sync ---
 echo "--- Step 3: Sync dependencies with uv ---"
 echo ""
-echo "This creates a virtual environment and builds Harrison's forks of:"
+echo "This creates a virtual environment and builds mne-opm forks of:"
 echo "  - mne-bids-pipeline"
 echo "  - mne-bids"
 echo "  - osl-ephys"
@@ -500,7 +506,7 @@ echo ""
 echo "---------------------------------------------"
 echo ""
 
-echo "For more details on mne-opm, see Harrison Ritz's documentation."
+echo "For more details on mne-opm, see documentation."
 read -rp "Would you like to open the mne-opm GitHub page? [Y/n]: " OPEN_GITHUB
 if [[ ! "$OPEN_GITHUB" =~ ^[Nn]$ ]]; then
     open_url "https://github.com/harrisonritz/mne-opm"
