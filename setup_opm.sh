@@ -109,8 +109,8 @@ else
 fi
 echo ""
 
-# --- mne-opm (dev branch) by Harrison Ritz ---
-echo "--- Step 2: Install mne-opm (dev branch) ---"
+# --- mne-opm (Mark's fork of the dev branch) ---
+echo "--- Step 2: Install mne-opm (Mark's fork of the dev branch) ---"
 echo ""
 
 # Prompt for install location
@@ -146,12 +146,12 @@ fi
 
 if [ ! -d "$INSTALL_DIR/mne-opm" ]; then
     echo ""
-    echo "Cloning mne-opm (dev branch) from GitHub..."
+    echo "Cloning mne-opm (Mark's fork of the dev branch) from GitHub..."
     git clone -b my-working-branch https://github.com/mrribbits/mne-opm.git
 fi
 
 echo ""
-echo "✓ mne-opm (dev branch) cloned successfully!"
+echo "✓ mne-opm (Mark's fork of the dev branch) cloned successfully!"
 echo "  Location: $INSTALL_DIR/mne-opm"
 echo ""
 
@@ -361,7 +361,7 @@ fi
 echo ""
 
 # Project variables
-PIPELINE="preproc"
+PIPELINE="coreg"
 EXPERIMENT="oddball"
 ANALYSIS="analysis1"
 SUBJECT="001"
@@ -390,10 +390,9 @@ mkdir -p "$DATA_BASE/$EXPERIMENT/raw/sub_${SUBJECT}/eyetracking"
 mkdir -p "$BIDS_DIR/sub-${SUBJECT}/ses-${SESSION}/meg"
 mkdir -p "$BIDS_DIR/sub-${SUBJECT}/ses-${SESSION}/anat"
 mkdir -p "$BIDS_DIR/derivatives/freesurfer/subjects"
-mkdir -p "$BIDS_DIR/derivatives/${ANALYSIS}"
 
 # Tree 3: configs/
-mkdir -p "$CONFIG_BASE/bids"
+mkdir -p "$CONFIG_BASE/$EXPERIMENT/bids"
 
 # Analysis directory
 mkdir -p "$ROOT_DIR/analysis"
@@ -420,11 +419,11 @@ echo "          │   │   └── ses-${SESSION}/"
 echo "          │   │       ├── meg/"
 echo "          │   │       └── anat/"
 echo "          │   └── derivatives/"
-echo "          │       ├── freesurfer/"
-echo "          │       │   └── subjects/"
-echo "          │       └── ${ANALYSIS}/"
+echo "          │       └── freesurfer/"
+echo "          │           └── subjects/"
 echo "          └── configs/"
-echo "              └── bids/"
+echo "              └── $EXPERIMENT/"
+echo "                  └── bids/"
 echo ""
 echo "Project variables:"
 echo "  PIPELINE     = $PIPELINE"
@@ -446,9 +445,9 @@ echo ""
 # --- Step 7: Download sample data ---
 echo "--- Step 7: Download sample data ---"
 echo ""
-echo "We will now download the sample dataset. You may not need everything"
-echo "offered, depending where you'd like to start in the pipeline."
-echo "Please ask if you're not sure what you need."
+echo "We will now download the sample dataset. You'll have the option of"
+echo "downloading just the raw data, or downloading data that's been processed"
+echo "to a certain point. Students should choose the latter."
 echo ""
 
 # Helper function: download a file from Dropbox using curl or wget
@@ -458,232 +457,132 @@ download_file() {
     local dl_url="${url/dl=0/dl=1}"
 
     if command -v curl &> /dev/null; then
-        curl -L -o "$dest" "$dl_url"
+        curl -L -H "Cache-Control: no-cache" -o "$dest" "$dl_url"
     else
-        wget -q -O "$dest" "$dl_url"
+        wget --no-cache -q -O "$dest" "$dl_url"
     fi
 }
 
-# 1-5: Optional raw data (students do not need these)
+# 1. Raw sample dataset (default No)
 echo "============================================="
-echo "  Students do not need to download anything"
-echo "  from this first section (items 1-5)."
-echo "============================================="
-echo ""
-
-# 1. MRI DICOM data
-read -rp "1. Download MRI dicom data to $ROOT_DIR/data/$EXPERIMENT/raw/sub_${SUBJECT}/dicom? Students do not need this [y/N]: " DL_DICOM
-if [[ "$DL_DICOM" =~ ^[Yy]$ ]]; then
-    echo "   Downloading MRI dicom data (zip)..."
-    DEST_DIR="$ROOT_DIR/data/$EXPERIMENT/raw/sub_${SUBJECT}/dicom"
-    if download_file "https://www.dropbox.com/scl/fi/u30g3672lcgt7xxlddd2y/Archive.zip?rlkey=kqq7j6dhxngfxv9l0pce8lob6&dl=0" "$DEST_DIR/Archive.zip"; then
-        echo "   Extracting..."
-        cd "$DEST_DIR"
-        unzip -qo Archive.zip || true
-        rm -f Archive.zip
-        rm -rf __MACOSX
-        echo "   ✓ MRI dicom data downloaded and extracted."
-    else
-        echo ""
-        echo "   ⚠ Download failed. Please download manually from your browser:"
-        echo "     https://www.dropbox.com/scl/fi/u30g3672lcgt7xxlddd2y/Archive.zip?rlkey=kqq7j6dhxngfxv9l0pce8lob6&dl=0"
-        echo "   Then unzip and place the DICOM files in:"
-        echo "     $DEST_DIR/"
-    fi
-fi
-echo ""
-
-# 2. Eyetracking data
-read -rp "2. Download the raw eyetracking data to $ROOT_DIR/data/$EXPERIMENT/raw/sub_${SUBJECT}/eyetracking? Students do not need this [y/N]: " DL_EYE
-if [[ "$DL_EYE" =~ ^[Yy]$ ]]; then
-    echo "   Downloading eyetracking data..."
-    DEST_DIR="$ROOT_DIR/data/$EXPERIMENT/raw/sub_${SUBJECT}/eyetracking"
-    if download_file "https://www.dropbox.com/scl/fi/k4ow3a3xgh40ofnn5ay8e/recording.asc?rlkey=f19uogxfdggpuwevjdl7yl39l&dl=0" "$DEST_DIR/recording.asc"; then
-        echo "   ✓ Eyetracking data downloaded."
-    else
-        echo ""
-        echo "   ⚠ Download failed. Please download manually from your browser:"
-        echo "     https://www.dropbox.com/scl/fi/k4ow3a3xgh40ofnn5ay8e/recording.asc?rlkey=f19uogxfdggpuwevjdl7yl39l&dl=0"
-        echo "   Then place the file in:"
-        echo "     $DEST_DIR/"
-    fi
-fi
-echo ""
-
-# 3. MEG empty room noise recording
-read -rp "3. Download the raw MEG empty room noise recording to $ROOT_DIR/data/$EXPERIMENT/raw/sub_${SUBJECT}/session1_noise? Students do not need this [y/N]: " DL_NOISE
-if [[ "$DL_NOISE" =~ ^[Yy]$ ]]; then
-    echo "   Downloading MEG empty room noise recording..."
-    DEST_DIR="$ROOT_DIR/data/$EXPERIMENT/raw/sub_${SUBJECT}/session1_noise"
-    if download_file "https://www.dropbox.com/scl/fi/1wlysh1wh6jay78twl05v/20260303_134623_meg.fif?rlkey=jlkgjcyekfwf2bf5mu8ds918a&dl=0" "$DEST_DIR/20260303_134623_meg.fif"; then
-        echo "   ✓ MEG noise recording downloaded."
-    else
-        echo ""
-        echo "   ⚠ Download failed. Please download manually from your browser:"
-        echo "     https://www.dropbox.com/scl/fi/1wlysh1wh6jay78twl05v/20260303_134623_meg.fif?rlkey=jlkgjcyekfwf2bf5mu8ds918a&dl=0"
-        echo "   Then place the file in:"
-        echo "     $DEST_DIR/"
-    fi
-fi
-echo ""
-
-# 4. MEG subject recording
-read -rp "4. Download the raw MEG subject recording to $ROOT_DIR/data/$EXPERIMENT/raw/sub_${SUBJECT}/session1_task? Students do not need this [y/N]: " DL_TASK
-if [[ "$DL_TASK" =~ ^[Yy]$ ]]; then
-    echo "   Downloading MEG subject recording..."
-    DEST_DIR="$ROOT_DIR/data/$EXPERIMENT/raw/sub_${SUBJECT}/session1_task"
-    if download_file "https://www.dropbox.com/scl/fi/0heme6p98cf8q5wsm4gvs/20260303_143625_meg.fif?rlkey=rworio33eala39umni5pxkuv1&dl=0" "$DEST_DIR/20260303_143625_meg.fif"; then
-        echo "   ✓ MEG subject recording downloaded."
-    else
-        echo ""
-        echo "   ⚠ Download failed. Please download manually from your browser:"
-        echo "     https://www.dropbox.com/scl/fi/0heme6p98cf8q5wsm4gvs/20260303_143625_meg.fif?rlkey=rworio33eala39umni5pxkuv1&dl=0"
-        echo "   Then place the file in:"
-        echo "     $DEST_DIR/"
-    fi
-fi
-echo ""
-
-# 5. MRI NIfTI files (from "nifti" pipeline)
-read -rp "5. Download MRI NIfTI files to $DATA_BASE/$EXPERIMENT/raw/sub_${SUBJECT}/anat? Students do not need this [y/N]: " DL_NIFTI
-if [[ "$DL_NIFTI" =~ ^[Yy]$ ]]; then
-    echo "   Downloading MRI NIfTI files (zip)..."
-    DEST_DIR="$DATA_BASE/$EXPERIMENT/raw/sub_${SUBJECT}/anat"
-    if download_file "https://www.dropbox.com/scl/fo/0emvfylc2eyp5fe5xgp5p/AKZ2j923phpNofnAngp4q3s?rlkey=u0j8yylj4tyg98jh5hzymdt2v&dl=0" "$DEST_DIR/anat_download.zip"; then
-        echo "   Extracting..."
-        cd "$DEST_DIR"
-        unzip -qo anat_download.zip || true
-        rm -f anat_download.zip
-        rm -rf __MACOSX
-        echo "   ✓ MRI NIfTI files downloaded and extracted."
-    else
-        echo ""
-        echo "   ⚠ Download failed. Please download manually from your browser:"
-        echo "     https://www.dropbox.com/scl/fo/0emvfylc2eyp5fe5xgp5p/AKZ2j923phpNofnAngp4q3s?rlkey=u0j8yylj4tyg98jh5hzymdt2v&dl=0"
-        echo "   Then unzip and place the files in:"
-        echo "     $DEST_DIR/"
-    fi
-fi
-echo ""
-
-# 6-10: Required data (students must download these)
-echo "============================================="
-echo "  Students must download everything in this"
-echo "  next section (items 6-10)."
+echo "  Option 1: Full raw dataset."
+echo "  Requires ALL processing pipelines (nifti,"
+echo "  bids, freesurfer, coreg, etc)."
+echo "  Students do not need this."
 echo "============================================="
 echo ""
-
-# 6. Psychopy event log
-read -rp "6. Download Psychopy event log to $ROOT_DIR/data/$EXPERIMENT/raw/sub_${SUBJECT}/metadata? [Y/n]: " DL_PSYCH
-if [[ ! "$DL_PSYCH" =~ ^[Nn]$ ]]; then
-    echo "   Downloading Psychopy event log..."
-    DEST_DIR="$ROOT_DIR/data/$EXPERIMENT/raw/sub_${SUBJECT}/metadata"
-    if download_file "https://www.dropbox.com/scl/fi/c60r0237kt57i66ssduki/sub-001_events.csv?rlkey=tlckvan89bptp8vx8e0uwkn2r&dl=0" "$DEST_DIR/sub-001_events.csv"; then
-        echo "   ✓ Psychopy event log downloaded."
-    else
-        echo ""
-        echo "   ⚠ Download failed. Please download manually from your browser:"
-        echo "     https://www.dropbox.com/scl/fi/c60r0237kt57i66ssduki/sub-001_events.csv?rlkey=tlckvan89bptp8vx8e0uwkn2r&dl=0"
-        echo "   Then place the file in:"
-        echo "     $DEST_DIR/"
-    fi
-fi
-echo ""
-
-# 7. Main config file
-read -rp "7. Download main config file to $CONFIG_BASE? [Y/n]: " DL_CONFIG
-if [[ ! "$DL_CONFIG" =~ ^[Nn]$ ]]; then
-    echo "   Downloading main config file..."
-    DEST_DIR="$CONFIG_BASE"
-    if download_file "https://www.dropbox.com/scl/fi/8cejmh6y2g4z975ps5c9f/config-analysis1.py?rlkey=741udeakll3559lug05glju9w&dl=0" "$DEST_DIR/config-analysis1.py"; then
-        echo "   ✓ Main config file downloaded."
-    else
-        echo ""
-        echo "   ⚠ Download failed. Please download manually from your browser:"
-        echo "     https://www.dropbox.com/scl/fi/8cejmh6y2g4z975ps5c9f/config-analysis1.py?rlkey=741udeakll3559lug05glju9w&dl=0"
-        echo "   Then place the file in:"
-        echo "     $DEST_DIR/"
-    fi
-fi
-echo ""
-
-# 8. Subject-specific bids config file
-read -rp "8. Download subject-specific bids config file to $CONFIG_BASE/bids? [Y/n]: " DL_BIDS_CONFIG
-if [[ ! "$DL_BIDS_CONFIG" =~ ^[Nn]$ ]]; then
-    echo "   Downloading subject-specific bids config file..."
-    DEST_DIR="$CONFIG_BASE/bids"
-    if download_file "https://www.dropbox.com/scl/fi/4sy9rt83cbna3kx4jrhpj/sub-001_config-bids.py?rlkey=eofr513kzhfj436q4r9dvetdj&dl=0" "$DEST_DIR/sub-001_config-bids.py"; then
-        echo "   ✓ Subject-specific bids config file downloaded."
-    else
-        echo ""
-        echo "   ⚠ Download failed. Please download manually from your browser:"
-        echo "     https://www.dropbox.com/scl/fi/4sy9rt83cbna3kx4jrhpj/sub-001_config-bids.py?rlkey=eofr513kzhfj436q4r9dvetdj&dl=0"
-        echo "   Then place the file in:"
-        echo "     $DEST_DIR/"
-    fi
-fi
-echo ""
-
-# 9. BIDS data (from "bids" pipeline)
-read -rp "9. Download BIDS data to $BIDS_DIR? [Y/n]: " DL_BIDS
-if [[ ! "$DL_BIDS" =~ ^[Nn]$ ]]; then
-    echo "   Downloading BIDS data (zip)..."
-    DEST_DIR="$BIDS_DIR"
-    if download_file "https://www.dropbox.com/scl/fo/rza1hrvnkcxdygamb33g7/AJ_jagXOp3HDg3lG-6R3ua4?rlkey=35wnypz77ljm1051e0zw65t0e&dl=0" "$DEST_DIR/bids_download.zip"; then
+read -rp "1. Download the raw sample dataset? [y/N]: " DL_RAW
+if [[ "$DL_RAW" =~ ^[Yy]$ ]]; then
+    echo "   Downloading raw sample dataset (this may take a while)..."
+    TMP_DIR=$(mktemp -d)
+    if download_file "https://www.dropbox.com/scl/fi/kap08gztdx1wo3x16hj67/MEG-sample-data-raw.zip?rlkey=9zuow728782kb9gbug0515771&st=g2wbnzcy&dl=0" "$TMP_DIR/MEG-sample-data-raw.zip"; then
         echo "   Extracting..."
-        cd "$DEST_DIR"
-        unzip -qo bids_download.zip -d "$DEST_DIR/sub-${SUBJECT}" || true
-        rm -f bids_download.zip
-        rm -rf __MACOSX
-        echo "   ✓ BIDS data downloaded and extracted."
+        unzip -qo "$TMP_DIR/MEG-sample-data-raw.zip" -d "$TMP_DIR" || true
+        echo "   Merging into project directory..."
+        rsync -a "$TMP_DIR/MEG-sample-data-raw/oddball/" "$ROOT_DIR/"
+        rm -rf "$TMP_DIR"
+        echo "   ✓ Raw sample dataset downloaded and extracted."
     else
         echo ""
         echo "   ⚠ Download failed. Please download manually from your browser:"
-        echo "     https://www.dropbox.com/scl/fo/rza1hrvnkcxdygamb33g7/AJ_jagXOp3HDg3lG-6R3ua4?rlkey=35wnypz77ljm1051e0zw65t0e&dl=0"
-        echo "   Then unzip and place the files in:"
-        echo "     $DEST_DIR/"
+        echo "     https://www.dropbox.com/scl/fi/kap08gztdx1wo3x16hj67/MEG-sample-data-raw.zip?rlkey=9zuow728782kb9gbug0515771&st=g2wbnzcy&dl=0"
+        echo "   Then unzip and copy the contents of MEG-sample-data-raw/oddball/ into:"
+        echo "     $ROOT_DIR/"
+        rm -rf "$TMP_DIR"
     fi
 fi
 echo ""
 
-# 10. FreeSurfer outputs (from "freesurfer" pipeline)
-read -rp "10. Download FreeSurfer outputs to $SUBJECTS_DIR? [Y/n]: " DL_FS
-if [[ ! "$DL_FS" =~ ^[Nn]$ ]]; then
-    echo "   Downloading FreeSurfer outputs (zip)..."
-    DEST_DIR="$SUBJECTS_DIR"
-    if download_file "https://www.dropbox.com/scl/fo/2tfd5rz7r647gp7pl61xa/AIOBe29YJr2l-itDu_T8TiI?rlkey=uykmi2656kzn62lyri35y1qg7&dl=0" "$DEST_DIR/freesurfer_download.zip"; then
+# 2. Processed dataset for students (default Yes)
+echo "============================================="
+echo "  Option 2: Mostly processed dataset."
+echo "  Data is ready for the coreg pipeline"
+echo "  going forward. Students should choose this."
+echo "============================================="
+echo ""
+read -rp "2. Download the processed sample dataset? [Y/n]: " DL_STUDENT
+if [[ ! "$DL_STUDENT" =~ ^[Nn]$ ]]; then
+    echo "   Downloading processed sample dataset (this may take a while)..."
+    TMP_DIR=$(mktemp -d)
+    if download_file "https://www.dropbox.com/scl/fi/puuz2s3bu2q2d4b6mej2l/MEG-for-students.zip?rlkey=z3gdunbuewna5d1u2w9ujb7zw&st=tobsoo7j&dl=0" "$TMP_DIR/MEG-for-students.zip"; then
         echo "   Extracting..."
-        cd "$DEST_DIR"
-        unzip -qo freesurfer_download.zip || true
-        rm -f freesurfer_download.zip
-        rm -rf __MACOSX
-        echo "   ✓ FreeSurfer outputs downloaded and extracted."
+        unzip -qo "$TMP_DIR/MEG-for-students.zip" -d "$TMP_DIR" || true
+        echo "   Merging into project directory..."
+        rsync -a --ignore-existing "$TMP_DIR/oddball/" "$ROOT_DIR/"
+        rm -rf "$TMP_DIR"
+        echo "   ✓ Processed sample dataset downloaded and extracted."
     else
         echo ""
         echo "   ⚠ Download failed. Please download manually from your browser:"
-        echo "     https://www.dropbox.com/scl/fo/2tfd5rz7r647gp7pl61xa/AIOBe29YJr2l-itDu_T8TiI?rlkey=uykmi2656kzn62lyri35y1qg7&dl=0"
-        echo "   Then unzip and place the files in:"
-        echo "     $DEST_DIR/"
+        echo "     https://www.dropbox.com/scl/fi/puuz2s3bu2q2d4b6mej2l/MEG-for-students.zip?rlkey=z3gdunbuewna5d1u2w9ujb7zw&st=tobsoo7j&dl=0"
+        echo "   Then unzip and copy the contents of oddball/ into:"
+        echo "     $ROOT_DIR/"
+        rm -rf "$TMP_DIR"
     fi
 fi
 echo ""
 
-# --- Step 8: Download and configure runlocal-mne-opm.sh ---
-echo "--- Step 8: Download runlocal-mne-opm.sh and update its paths for you ---"
+# 3. Scripts and config files
+echo "============================================="
+echo "  Download scripts and configuration files."
+echo "  Everyone should download these."
+echo "============================================="
 echo ""
+GITHUB_RAW="https://raw.githubusercontent.com/mrribbits/NEU502-2026/main"
 
-read -rp "Download runlocal-mne-opm.sh to $ROOT_DIR/analysis? [Y/n]: " DL_RUNLOCAL
-if [[ ! "$DL_RUNLOCAL" =~ ^[Nn]$ ]]; then
-    echo "   Downloading runlocal-mne-opm.sh..."
+read -rp "3. Download scripts and config files? [Y/n]: " DL_SCRIPTS
+if [[ ! "$DL_SCRIPTS" =~ ^[Nn]$ ]]; then
+
+    # --- Analysis scripts ---
     DEST_DIR="$ROOT_DIR/analysis"
-    if download_file "https://www.dropbox.com/scl/fi/gt125gd2o7b4mr7wea6fc/runlocal-mne-opm.sh?rlkey=mp0dbfh4mlejkas1hkrexp70u&dl=0" "$DEST_DIR/runlocal-mne-opm.sh"; then
+    mkdir -p "$DEST_DIR"
+
+    echo "   Downloading runlocal-mne-opm.sh..."
+    if curl -LsSf "$GITHUB_RAW/analysis/runlocal-mne-opm.sh" -o "$DEST_DIR/runlocal-mne-opm.sh"; then
         chmod +x "$DEST_DIR/runlocal-mne-opm.sh"
         echo "   ✓ runlocal-mne-opm.sh downloaded."
-        echo ""
+    else
+        echo "   ⚠ Failed. Download manually from: $GITHUB_RAW/analysis/runlocal-mne-opm.sh"
+    fi
 
+    echo "   Downloading check-coreg.py..."
+    if curl -LsSf "$GITHUB_RAW/analysis/check-coreg.py" -o "$DEST_DIR/check-coreg.py"; then
+        echo "   ✓ check-coreg.py downloaded."
+    else
+        echo "   ⚠ Failed. Download manually from: $GITHUB_RAW/analysis/check-coreg.py"
+    fi
+
+    echo "   Downloading check-meg-and-eyedata-annotations.py..."
+    if curl -LsSf "$GITHUB_RAW/analysis/check-meg-and-eyedata-annotations.py" -o "$DEST_DIR/check-meg-and-eyedata-annotations.py"; then
+        echo "   ✓ check-meg-and-eyedata-annotations.py downloaded."
+    else
+        echo "   ⚠ Failed. Download manually from: $GITHUB_RAW/analysis/check-meg-and-eyedata-annotations.py"
+    fi
+    echo ""
+
+    # --- Config files ---
+    DEST_DIR="$CONFIG_BASE/$EXPERIMENT"
+    mkdir -p "$DEST_DIR/bids"
+
+    echo "   Downloading config-analysis1.py..."
+    if curl -LsSf "$GITHUB_RAW/configs/oddball/config-analysis1.py" -o "$DEST_DIR/config-analysis1.py"; then
+        echo "   ✓ config-analysis1.py downloaded."
+    else
+        echo "   ⚠ Failed. Download manually from: $GITHUB_RAW/configs/oddball/config-analysis1.py"
+    fi
+
+    echo "   Downloading sub-001_config-bids.py..."
+    if curl -LsSf "$GITHUB_RAW/configs/oddball/bids/sub-001_config-bids.py" -o "$DEST_DIR/bids/sub-001_config-bids.py"; then
+        echo "   ✓ sub-001_config-bids.py downloaded."
+    else
+        echo "   ⚠ Failed. Download manually from: $GITHUB_RAW/configs/oddball/bids/sub-001_config-bids.py"
+    fi
+    echo ""
+
+    # --- Update paths in runlocal-mne-opm.sh ---
+    RUN_SCRIPT="$ROOT_DIR/analysis/runlocal-mne-opm.sh"
+    if [ -f "$RUN_SCRIPT" ]; then
         echo "   Updating parameters and paths in runlocal-mne-opm.sh..."
-        RUN_SCRIPT="$DEST_DIR/runlocal-mne-opm.sh"
-
         sed -i.bak \
             -e "s|^PIPELINE=.*|PIPELINE=\"$PIPELINE\"|" \
             -e "s|^EXPERIMENT=.*|EXPERIMENT=\"$EXPERIMENT\"|" \
@@ -697,20 +596,10 @@ if [[ ! "$DL_RUNLOCAL" =~ ^[Nn]$ ]]; then
             -e "s|^SUBJECTS_DIR=.*|SUBJECTS_DIR=\"$SUBJECTS_DIR\"|" \
             -e "s|^MNE_OPM_DIR=.*|MNE_OPM_DIR=\"$MNE_OPM_DIR\"|" \
             "$RUN_SCRIPT"
-
         rm -f "${RUN_SCRIPT}.bak"
-
         echo "   ✓ runlocal-mne-opm.sh configured with the sample project settings."
-    else
-        echo ""
-        echo "   ⚠ Download failed. Please download manually from your browser:"
-        echo "     https://www.dropbox.com/scl/fi/gt125gd2o7b4mr7wea6fc/runlocal-mne-opm.sh?rlkey=mp0dbfh4mlejkas1hkrexp70u&dl=0"
-        echo "   Then place the file in:"
-        echo "     $ROOT_DIR/analysis/"
-        echo "   NOTE: You will need to manually update the paths in the file."
     fi
-else
-    echo "   Skipping runlocal-mne-opm.sh download."
+
 fi
 echo ""
 
@@ -731,7 +620,7 @@ echo ""
 echo "How to use mne-opm:"
 echo ""
 echo "  1. Edit the config file as needed:"
-echo "     $CONFIG_BASE/config-analysis1.py"
+echo "     $CONFIG_BASE/$EXPERIMENT/config-analysis1.py"
 echo ""
 echo "  2. Choose a PIPELINE in runlocal-mne-opm.sh (line 7) and run it:"
 echo "     $ROOT_DIR/analysis/runlocal-mne-opm.sh"
@@ -739,7 +628,9 @@ echo ""
 echo "     Valid PIPELINE options:"
 echo "     nifti | bids | freesurfer | coreg | preproc | sensor | source | all | func | anat"
 echo ""
-echo "     Each pipeline has an associated run_*.sh script."
+echo "     Students should start at coreg."
+echo ""
+echo "     Each pipeline has an associated run_*.sh script you can delve into."
 echo ""
 
 echo "For more details, see Harrison Ritz's documentation."
